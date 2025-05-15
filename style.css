@@ -427,3 +427,8 @@ h1 {
 h2{
     text-align: center;
 }
+#input-code {
+  overflow-y: auto; /* Garante a rolagem vertical (já deve estar assim) */
+  overflow-x: auto; /* Adiciona a rolagem horizontal quando necessário */
+  white-space: pre; /* Evita quebras de linha automáticas, forçando a rolagem horizontal */
+}

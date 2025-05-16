@@ -432,3 +432,53 @@ h2{
   overflow-x: auto; /* Adiciona a rolagem horizontal quando necessário */
   white-space: pre; /* Evita quebras de linha automáticas, forçando a rolagem horizontal */
 }
+/* Adicione este CSS à sua tag <style> existente */
+.search-code-container {
+  display: flex;
+  margin-bottom: 10px;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.search-code-input {
+  flex-grow: 1;
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.search-code-input input {
+  width: 100%;
+  padding: 6px 10px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+.search-code-buttons {
+  display: flex;
+  margin-left: 8px;
+}
+
+.search-code-buttons button {
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: 5px;
+  background-color: #f0f0f0;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.search-code-buttons button:hover {
+  background-color: #e0e0e0;
+}
+
+#search-results-count {
+  margin-left: 10px;
+  font-size: 12px;
+  color: #666;
+}

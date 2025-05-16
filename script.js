@@ -1,3 +1,221 @@
+// Versão corrigida da classe CodeSearchManager
+class CodeSearchManager {
+    constructor(textareaId) {
+        this.textarea = document.getElementById(textareaId);
+        this.searchInput = document.getElementById('code-search-input');
+        this.resultsCount = document.getElementById('search-results-count');
+        this.prevBtn = document.getElementById('search-prev-btn');
+        this.nextBtn = document.getElementById('search-next-btn');
+
+        this.matches = [];
+        this.currentMatchIndex = -1;
+        this.savedSelection = null;
+
+        this.setupEventListeners();
+    }
+
+    setupEventListeners() {
+        this.searchInput.addEventListener('input', () => this.performSearch());
+
+        // Impede que o clique nos botões de navegação tire o foco do input de pesquisa
+        this.prevBtn.addEventListener('click', (e) => {
+            e.preventDefault(); // Impede o comportamento padrão
+            this.navigateToMatch(-1);
+            this.searchInput.focus(); // Mantém o foco no campo de pesquisa
+        });
+
+        this.nextBtn.addEventListener('click', (e) => {
+            e.preventDefault(); // Impede o comportamento padrão
+            this.navigateToMatch(1);
+            this.searchInput.focus(); // Mantém o foco no campo de pesquisa
+        });
+
+        // Atalhos de teclado melhorados
+        this.searchInput.addEventListener('keydown', (e) => {
+            // Impede que Enter ou Shift+Enter enviem o formulário
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                e.stopPropagation();
+
+                if (e.shiftKey) {
+                    this.navigateToMatch(-1);
+                } else {
+                    this.navigateToMatch(1);
+                }
+            }
+
+            // Impede que setas para cima e para baixo mudem o foco
+            else if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+                e.preventDefault();
+                e.stopPropagation();
+
+                if (e.key === 'ArrowUp') {
+                    this.navigateToMatch(-1);
+                } else {
+                    this.navigateToMatch(1);
+                }
+            }
+        });
+
+        // Salva a posição do cursor no textarea quando o usuário clica nele
+        this.textarea.addEventListener('mouseup', () => {
+            this.savedSelection = {
+                start: this.textarea.selectionStart,
+                end: this.textarea.selectionEnd
+            };
+        });
+
+        // Salva a posição quando o usuário digita
+        this.textarea.addEventListener('keyup', () => {
+            this.savedSelection = {
+                start: this.textarea.selectionStart,
+                end: this.textarea.selectionEnd
+            };
+        });
+    }
+
+    performSearch() {
+        const searchTerm = this.searchInput.value;
+        const codeText = this.textarea.value;
+
+        // Limpar highlights anteriores
+        this.clearHighlights();
+
+        if (!searchTerm) {
+            this.matches = [];
+            this.currentMatchIndex = -1;
+            this.updateResultsCount();
+
+            // Restaura a seleção anterior se existir
+            if (this.savedSelection) {
+                this.textarea.focus();
+                this.textarea.setSelectionRange(
+                    this.savedSelection.start,
+                    this.savedSelection.end
+                );
+            }
+
+            return;
+        }
+
+        // Encontrar todas as ocorrências
+        this.matches = this.findAllMatches(codeText, searchTerm);
+        this.currentMatchIndex = this.matches.length > 0 ? 0 : -1;
+        this.updateResultsCount();
+
+        // Destacar todas as ocorrências
+        if (this.matches.length > 0) {
+            this.highlightMatches();
+            // NÃO chama scrollToCurrentMatch() aqui para evitar roubar o foco
+        }
+    }
+
+    findAllMatches(text, searchTerm) {
+        const matches = [];
+        searchTerm = searchTerm.toLowerCase();
+        let pos = 0;
+        let lastIndex = 0;
+
+        // Procurar case-insensitive
+        const textLower = text.toLowerCase();
+        while ((pos = textLower.indexOf(searchTerm, lastIndex)) !== -1) {
+            matches.push({
+                start: pos,
+                end: pos + searchTerm.length,
+                text: text.substring(pos, pos + searchTerm.length)
+            });
+            lastIndex = pos + 1;
+        }
+
+        return matches;
+    }
+
+    clearHighlights() {
+        // Para textarea simples, apenas resetamos a seleção se necessário
+        // Não fazemos nada aqui para evitar tirar o foco
+    }
+
+    highlightMatches() {
+        if (this.matches.length > 0) {
+            // Para o textarea simples, vamos apenas destacar o match atual
+            const match = this.matches[this.currentMatchIndex];
+
+            // Seleciona o texto sem tirar o foco do input de pesquisa
+            this.selectTextWithoutFocus(match.start, match.end);
+        }
+    }
+
+    selectTextWithoutFocus(start, end) {
+        // Armazena o elemento que tem o foco atualmente
+        const activeElement = document.activeElement;
+
+        // Foca no textarea brevemente para fazer a seleção
+        this.textarea.focus();
+        this.textarea.setSelectionRange(start, end);
+
+        // Faz o textarea visível na visualização
+        this.scrollToSelection();
+
+        // Devolve o foco ao elemento anterior (provavelmente o input de pesquisa)
+        if (activeElement && activeElement !== this.textarea) {
+            setTimeout(() => {
+                activeElement.focus();
+            }, 0);
+        }
+    }
+
+    scrollToSelection() {
+        const textareaRect = this.textarea.getBoundingClientRect();
+        const lineHeight = parseInt(window.getComputedStyle(this.textarea).lineHeight) || 18;
+
+        // Cálculo básico para posicionar a seleção visível
+        const selectionPosition = this.getSelectionPosition();
+        if (selectionPosition) {
+            this.textarea.scrollTop = selectionPosition - textareaRect.height / 2 + lineHeight;
+        }
+    }
+
+    getSelectionPosition() {
+        // Simplificando, estimamos a posição com base no texto anterior
+        if (this.currentMatchIndex < 0 || !this.matches.length) return null;
+
+        const match = this.matches[this.currentMatchIndex];
+        const textBeforeMatch = this.textarea.value.substring(0, match.start);
+        const lines = textBeforeMatch.split('\n');
+
+        // Estimativa básica com base no número de linhas
+        return lines.length * 18; // 18px é uma estimativa de altura de linha
+    }
+
+    scrollToCurrentMatch() {
+        // Implementação simplificada substituída pelo selectTextWithoutFocus
+        // para controle mais preciso do foco
+    }
+
+    navigateToMatch(direction) {
+        if (this.matches.length === 0) return;
+
+        this.currentMatchIndex += direction;
+
+        // Circular navigation
+        if (this.currentMatchIndex < 0) {
+            this.currentMatchIndex = this.matches.length - 1;
+        } else if (this.currentMatchIndex >= this.matches.length) {
+            this.currentMatchIndex = 0;
+        }
+
+        this.updateResultsCount();
+        this.highlightMatches();
+    }
+
+    updateResultsCount() {
+        if (this.matches.length === 0) {
+            this.resultsCount.textContent = '0/0';
+        } else {
+            this.resultsCount.textContent = `${this.currentMatchIndex + 1}/${this.matches.length}`;
+        }
+    }
+}
 // Classe para gerenciar as ferramentas
 class ToolsManager {
     // 1. Adicione este método à classe ToolsManager para detectar duplo clique/toque
@@ -46,157 +264,6 @@ class ToolsManager {
     getDefaultTools() {
         // Retorna um array com ferramentas predefinidas
         return [
-            {
-                id: 'default-calculator',
-                title: 'Calculadora Simples',
-                code: `<!DOCTYPE html>
-<html>
-<head>
-    <title>Calculadora</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            margin: 0;
-            background-color: #f5f5f5;
-        }
-        .calculator {
-            background-color: #fff;
-            border-radius: 10px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            padding: 20px;
-            width: 300px;
-        }
-        .display {
-            background-color: #f0f0f0;
-            border-radius: 5px;
-            padding: 10px;
-            margin-bottom: 15px;
-            text-align: right;
-            font-size: 24px;
-            height: 40px;
-            overflow: hidden;
-        }
-        .buttons {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 10px;
-        }
-        button {
-            background-color: #e0e0e0;
-            border: none;
-            border-radius: 5px;
-            padding: 15px;
-            font-size: 18px;
-            cursor: pointer;
-            transition: background-color 0.2s;
-        }
-        button:hover {
-            background-color: #d0d0d0;
-        }
-        .operator {
-            background-color: #f8a51b;
-            color: white;
-        }
-        .operator:hover {
-            background-color: #e59400;
-        }
-        .equals {
-            background-color: #4caf50;
-            color: white;
-        }
-        .equals:hover {
-            background-color: #3d8c40;
-        }
-        .clear {
-            background-color: #f44336;
-            color: white;
-        }
-        .clear:hover {
-            background-color: #d32f2f;
-        }
-    </style>
-</head>
-<body>
-    <div class="calculator">
-        <div class="display" id="display">0</div>
-        <div class="buttons">
-            <button class="clear" onclick="clearDisplay()">C</button>
-            <button onclick="appendCharacter('(')">(</button>
-            <button onclick="appendCharacter(')')">)</button>
-            <button class="operator" onclick="appendCharacter('/')">/</button>
-            
-            <button onclick="appendCharacter('7')">7</button>
-            <button onclick="appendCharacter('8')">8</button>
-            <button onclick="appendCharacter('9')">9</button>
-            <button class="operator" onclick="appendCharacter('*')">×</button>
-            
-            <button onclick="appendCharacter('4')">4</button>
-            <button onclick="appendCharacter('5')">5</button>
-            <button onclick="appendCharacter('6')">6</button>
-            <button class="operator" onclick="appendCharacter('-')">-</button>
-            
-            <button onclick="appendCharacter('1')">1</button>
-            <button onclick="appendCharacter('2')">2</button>
-            <button onclick="appendCharacter('3')">3</button>
-            <button class="operator" onclick="appendCharacter('+')">+</button>
-            
-            <button onclick="appendCharacter('0')">0</button>
-            <button onclick="appendCharacter('.')">.</button>
-            <button onclick="backspace()">⌫</button>
-            <button class="equals" onclick="calculate()">=</button>
-        </div>
-    </div>
-
-    <script>
-        let display = document.getElementById('display');
-        let currentExpression = '0';
-
-        function updateDisplay() {
-            display.textContent = currentExpression;
-        }
-
-        function appendCharacter(char) {
-            if (currentExpression === '0' && char !== '.') {
-                currentExpression = char;
-            } else {
-                currentExpression += char;
-            }
-            updateDisplay();
-        }
-
-        function clearDisplay() {
-            currentExpression = '0';
-            updateDisplay();
-        }
-
-        function backspace() {
-            if (currentExpression.length <= 1) {
-                currentExpression = '0';
-            } else {
-                currentExpression = currentExpression.slice(0, -1);
-            }
-            updateDisplay();
-        }
-
-        function calculate() {
-            try {
-                currentExpression = eval(currentExpression).toString();
-                updateDisplay();
-            } catch (error) {
-                currentExpression = 'Erro';
-                updateDisplay();
-                setTimeout(clearDisplay, 1000);
-            }
-        }
-    </script>
-</body>
-</html>`,
-                createdAt: new Date().toISOString()
-            },
             {
                 id: 'default-notes',
                 title: 'Bloco de Notas',
@@ -358,7 +425,18 @@ class ToolsManager {
 </html>`,
                 createdAt: new Date().toISOString()
             }
-            // Adicione mais ferramentas predefinidas aqui
+            // Você pode adicionar mais ferramentas seguindo este formato abaixo
+            // ,{
+            // id: 'default-nome',
+            // title: 'Titulo',
+            // code: `<!DOCTYPE html>
+            // <html>
+            // <!-- Código existente do bloco de notas -->
+            // </html>`,
+            // createdAt: new Date().toISOString()
+            // }  até aqui!
+
+
         ];
     }
 
@@ -537,6 +615,8 @@ class ToolsManager {
         this.tools = this.loadTools();
         this.currentToolId = null;
         this.escKeyHandler = null; // Para armazenar o handler da tecla ESC
+        this.codeSearchManager = null; // Para gerenciar a pesquisa de código
+
         this.setupEventListeners();
         this.renderToolsList();
         this.setupSearchFunctionality();
@@ -798,6 +878,13 @@ class ToolsManager {
         document.getElementById('input-code').value = '';
         document.getElementById('tool-modal').style.display = 'flex';
         document.querySelector('[data-tab="editor"]').click();
+        const searchInput = document.getElementById('code-search-input');
+        if (searchInput) {
+            searchInput.value = '';
+            if (this.codeSearchManager) {
+                this.codeSearchManager.performSearch();
+            }
+        }
     }
 
     // Abre o modal para editar uma ferramenta existente
@@ -811,6 +898,13 @@ class ToolsManager {
         document.getElementById('input-code').value = tool.code;
         document.getElementById('tool-modal').style.display = 'flex';
         document.querySelector('[data-tab="editor"]').click();
+        const searchInput = document.getElementById('code-search-input');
+        if (searchInput) {
+            searchInput.value = '';
+            if (this.codeSearchManager) {
+                this.codeSearchManager.performSearch();
+            }
+        }
     }
 
     // Fecha o modal
@@ -883,6 +977,7 @@ class ToolsManager {
         document.getElementById('tool-form').addEventListener('submit', (e) => {
             e.preventDefault();
 
+
             const id = document.getElementById('tool-id').value;
             const title = document.getElementById('input-title').value;
             const code = document.getElementById('input-code').value;
@@ -897,6 +992,20 @@ class ToolsManager {
             }
 
             this.closeModal();
+        });
+        // É importante também evitar que o Enter e outras teclas especiais 
+        // submetam o formulário. Adicione isto no evento keydown do 
+        // formulário no método setupEventListeners da classe ToolsManager:
+
+        document.getElementById('tool-form').addEventListener('keydown', function (e) {
+            // Impede que Enter submeta o formulário quando estiver na pesquisa ou na navegação
+            if (e.key === 'Enter' &&
+                (e.target.id === 'code-search-input' ||
+                    e.target.id === 'search-next-btn' ||
+                    e.target.id === 'search-prev-btn')) {
+                e.preventDefault();
+                return false;
+            }
         });
 
         // Fechar modal
@@ -963,7 +1072,21 @@ class ToolsManager {
                     this.closeModal();
                 }
             }
+
         });
+        // Adicione este bloco no final do método setupEventListeners()
+        // Inicializa o gerenciador de pesquisa quando a tab de editor é aberta
+        document.querySelectorAll('[data-tab="editor"]').forEach(tab => {
+            tab.addEventListener('click', () => {
+                // Pequeno timeout para garantir que o modal já esteja visível
+                setTimeout(() => {
+                    if (!this.codeSearchManager) {
+                        this.codeSearchManager = new CodeSearchManager('input-code');
+                    }
+                }, 100);
+            });
+        });
+
     }
 
     // Configura a funcionalidade de busca
